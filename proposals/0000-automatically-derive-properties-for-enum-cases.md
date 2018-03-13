@@ -260,7 +260,16 @@ extension Color {
 }
 ```
 
-This overall solution is in conflict with an unimplemented component of an accepted proposal, [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md), wherein enum cases can be given overlapping case names (as long as the argument labels and types differ). We propose this unimplemented component should be revised to avoid ambiguity and the failure to generate properties.
+### Conflicts
+
+This overall solution is in conflict with unimplemented components of an accepted proposal, [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md).
+
+In this proposal, enum cases can be given overlapping case names (as long as the argument labels and types differ). We propose this unimplemented component should be revised to avoid ambiguity and the failure to generate properties.
+
+
+### Future direction
+
+These getter properties lay the foundation for introducing setters in the future. Mutating a deeply-nested enum requires a lot of code right now. The ability to mutate such values with optional-chaining could improve this immensely.
 
 ## Detailed design
 
@@ -391,3 +400,50 @@ foo.0 // what type is this?
 ### Require protocol conformance for derivation
 
 Swift could special-case derivation of these properties by requiring a protocol conformance, as in [SE-0167](https://github.com/apple/swift-evolution/blob/master/proposals/0167-swift-encoders.md), with `Encodable` and `Decodable`, and as in [SE-0194](https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md), with `CaseIterable`. This is extra work for the end user, though, which is ideally avoided.
+
+### Use a new syntax instead of properties
+
+A few folks have suggested using a new syntax instead. It was pointed out that enum labels are sometimes written to read like a function. _E.g._,
+
+``` swift
+enum Selection {
+    case range(from: Int, to: Int)
+    case discreteIndices(in: [Int], inverted: Bool)
+}
+```
+
+There is an argument that property access of such cases pose readability issues.
+
+``` swift
+let selection = Selection.range(from: 1, to: 2)
+selection.range?.to // = .some(2)
+selection.discreteIndices?.in.first
+```
+
+This appears to be a minority of cases and, pending implementation of SE-0155, is how tuple binding currently operates in the language.
+
+``` swift
+switch selection {
+case let range(range):
+    range.to // Int
+case let discreteIndices(discreteIndices):
+    range.in.first // Int?
+}
+```
+
+Still, some have proposed adding entirely new grammar to the language. For example, a `matches` operator:
+
+``` swift
+selection matches .range(from: _, to: let upperBound) // = .some(2)
+(selection matches .discreteIndices(let indices, _))?.first
+
+selection matches let .range(a, b) // produces an (a: Int, b: Int)?
+```
+
+Or with syntax similar to pattern matching:
+
+``` swift
+(case .anotherCase = (case .value = result)?.someOtherProperty)?.name
+```
+
+These grammars add weight to the language and lead to a lot of unanswered questions. When bindings are used to express values rather than bind, are those variables made available anywhere in scope? How do such behaviors work with pattern matching as a whole?
