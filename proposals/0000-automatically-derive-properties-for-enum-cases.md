@@ -79,7 +79,7 @@ These properties also allow us to traverse deeply into nested structures using o
 result.value?.anotherCase?.name
 ```
 
-Without these properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case uses nested pattern matching, but still suffers from an additional statement, variable binding, and scope:
+Without these properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case of nested enums uses nested pattern matching, but still suffers from an additional statement, variable binding, and scope:
 
 ``` swift
 if case let .value(.anotherCase(anotherCase)) = result {
@@ -87,7 +87,7 @@ if case let .value(.anotherCase(anotherCase)) = result {
 }
 ```
 
-Deep pattern matching isn't commonly known. It's far more common to encounter Swift code that pattern matches over multiple clauses.
+This kind of deep pattern matching isn't commonly known. It's far more common to encounter Swift code that pattern matches over multiple clauses.
 
 ``` swift
 if
@@ -99,6 +99,19 @@ if
 ```
 
 This is even more difficult to read.
+
+When enums nest structs that nest enums, deep pattern matching isn't possible: pattern matching _must_ be broken up over multiple clauses.
+
+```
+if
+    case let .value(myStruct) = result,
+    case let .anotherCase(anotherCase) = myStruct.someProperty {
+
+        // use `anotherCase.whatever`
+}
+```
+
+Messier still!
 
 Currently, all of these properties must be written by hand. Developers waste a lot of time writing and maintaining noisy boilerplate that may only cover a small subsection of the enums defined in their code. The compiler should unburden developers and automate this with generated code.
 
