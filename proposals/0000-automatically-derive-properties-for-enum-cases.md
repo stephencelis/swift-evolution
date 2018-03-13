@@ -100,7 +100,7 @@ Given a struct:
 
 ``` swift
 struct User {
-  var name: String
+    var name: String
 }
 ```
 
@@ -117,8 +117,8 @@ Enum cases currently live outside the key path world, but if Swift were to deriv
 
 ``` swift
 enum Result<Value, Other> {
-  case value(Value)
-  case other(Other)
+    case value(Value)
+    case other(Other)
 }
 
 \Result<Int, String>.value
