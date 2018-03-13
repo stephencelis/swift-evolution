@@ -75,7 +75,7 @@ This kind of code isn't uncommon. The Swift standard library provides a lot of h
 
 These properties also allow us to traverse deeply into nested structures using optional chaining. _E.g._,
 
-```
+``` swift
 result.value?.anotherCase?.name
 ```
 
