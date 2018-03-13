@@ -73,13 +73,13 @@ array.filter { $0.value != nil }
 
 This kind of code isn't uncommon. The Swift standard library provides a lot of higher-order methods (`map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, etc.) that are easier to use and read when they can be expressed as single lines.
 
-Such properties also let us traverse deeply into nested structures using optional chaining. _E.g._,
+These properties also allow us to traverse deeply into nested structures using optional chaining. _E.g._,
 
 ```
 result.value?.anotherCase?.name
 ```
 
-Without properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case uses nested pattern matching, but still suffers from an additional statement, variable binding, and scope:
+Without these properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case uses nested pattern matching, but still suffers from an additional statement, variable binding, and scope:
 
 ``` swift
 if case let .value(.anotherCase(anotherCase)) = result {
