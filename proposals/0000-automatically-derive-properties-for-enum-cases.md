@@ -17,13 +17,19 @@
 
 ## Introduction
 
-I propose that Swift should automatically derive properties for enum cases. It's common to manually define properties for the sake of ergonomics: _e.g._, preferring expressions to `case let` statements. The compiler should generate this code for us. Adding these properties universally will unlock the ability to traverse into deeply nested structures using optional chaining, as well as begin to give enums more equal footing to structs in the key path world.
+Swift should automatically derive properties for enum cases in order to solve two problems:
+
+1. Enums with associated values have been a serious ergonomics issue since Swift's inception. Developers regularly write verbose boilerplate because of this.
+
+2. Key paths are a powerful new Swift feature built around properties. Properties are struct-biased, so enums are left behind.
+
+By making the compiler responsible for building enum properties, we unburden developers from the time-consuming task of maintaining and writing partial boilerplate, and we set the stage for enums to benefit from compiler-generated key path code.
 
 Swift-evolution thread: [Automatically derive properties for enum cases](https://forums.swift.org/t/automatically-derive-properties-for-enum-cases/10843/16)
 
 ## Motivation
 
-When enums have cases with associated values, they become more difficult to work with. Extracting values requires case analysis, which means a `switch`, `if`, or `guard` block.
+When enums have cases with associated values, they become more difficult to work with. Extracting values requires case analysis, which means a `switch`, `if`, or `guard` statement and block.
 
 ``` swift
 if case let .value(value) = result {
@@ -31,7 +37,7 @@ if case let .value(value) = result {
 }
 ```
 
-This problem can be amplified when working with closures. Swift privileges single-line closures with implicit returns and better-inferred return types. This can lead to a lot more boilerplate and ceremony.
+This problem gets worse with closures. Swift privileges single-line closures with implicit returns and better-inferred return types. Extracting associated values requires multiple lines, which leads to more boilerplate and ceremony.
 
 ``` swift
 array.filter { result -> Bool in
@@ -43,9 +49,9 @@ array.filter { result -> Bool in
 }
 ```
 
-Here we used `if` and `else`, though some teams may prefer to avoid `else` to compact things a bit, or to embrace `guard` to enforce the early `return`. All of these statement-based solutions are verbose and read differently. There is no clear winner.
+Here we used `if` and `else`. Some teams may prefer to avoid the symmetry of `else` to compact things a bit, or to embrace `guard` and enforce an early `return`. All of these statement-based solutions are verbose, though, and read differently. There is no clear winner.
 
-To clean up this boilerplate and confusion, it's common to define properties and work with expressions, instead.
+To clean up this boilerplate and confusion, it's common for developers to manually define properties in order to work with expressions, instead.
 
 ``` swift
 extension Result {
@@ -59,13 +65,13 @@ extension Result {
 }
 ```
 
-These properties can simplify a lot of code! Our earlier example becomes:
+Such properties can simplify a lot of code! Our earlier example becomes:
 
 ``` swift
 array.filter { $0.value != nil }
 ```
 
-These properties also let us traverse deeply into nested structures with optional chaining. Without them, we have to go through layers of `case let` binding.
+These properties also let us traverse deeply into nested structures using optional chaining. Without them, we would have to go through layers of `case let` binding.
 
 ``` swift
 if
@@ -80,20 +86,11 @@ if
 result.value?.anotherCase?.name
 ```
 
-Building these properties is a manual process, though, so engineers end up wasting a lot of time writing a lot of noisy boilerplate by hand that may only cover a small subsection of the enums defined in their code.
-
-<!--
-Describe the problems that this proposal seeks to address. If the
-problem is that some common pattern is currently hard to express, show
-how one can currently get a similar effect and describe its
-drawbacks. If it's completely new functionality that cannot be
-emulated, motivate why this new functionality would help Swift
-developers create better Swift code.
--->
+These properties must currently be written by hand. Developers waste a lot of time writing and maintaining noisy boilerplate that may only cover a small subsection of the enums defined in their code.
 
 ## Proposed solution
 
-I propose that Swift automatically derive these properties. For example, given the following enum:
+Swift should automatically derive these properties. Given the following enum:
 
 ``` swift
 enum Result<Value, Other> {
@@ -102,7 +99,7 @@ enum Result<Value, Other> {
 }
 ```
 
-Swift would derive the following properties:
+Swift should derive the following properties:
 
 ``` swift
 extension Result {
@@ -114,11 +111,17 @@ extension Result {
         }
     }
 
-    var other: Other? { /* … */ }
+    var other: Other? {
+        if case let .other(other) = result {
+            return other
+        } else {
+            return nil
+        }
+    }
 }
 ```
 
-For enum cases with multiple associated values, Swift will derive a property that returns an optional tuple of associated values.
+For enum cases with multiple associated values, Swift should derive a property that returns an optional tuple of associated values.
 
 ``` swift
 enum Color {
@@ -139,7 +142,7 @@ extension Color {
 }
 ```
 
-For enum cases with no associated values, Swift could derive boolean getters.
+For enum cases with no associated values, Swift should derive boolean getters.
 
 ``` swift
 enum TrafficLight {
@@ -167,7 +170,7 @@ trafficLight.isRed    // true
 trafficLight.isYellow // false
 ```
 
-In fact, Swift could derive these boolean getters for all enum cases, including those with associated values.
+In fact, Swift should derive these boolean getters for all enum cases, including those with associated values.
 
 ``` swift
 extension Result {
@@ -181,7 +184,7 @@ extension Color {
 }
 ```
 
-This solution is in conflict with an unimplemented component of [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md), where enum cases may be given the same case name. We propose that this unimplemented component is revised to avoid ambiguity or the failure to generate properties.
+Such a solution is in conflict with an unimplemented component of the accepted proposal, [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md), wherein enum cases can be given the same case name. We propose that this unimplemented component should be revised to avoid ambiguity and the failure to be able to generate properties.
 
 ## Detailed design
 
@@ -203,32 +206,11 @@ N/A
 
 ## Alternatives considered
 
-### Do not generate boolean getters
+### Do not derive new names for boolean getters
 
-There is some resistance to the idea of magically deriving new names for boolean getters. Enum cases without associated values could generate boolean getters with the same name as the case, instead.
+There is some resistance to the idea of magically deriving new names for boolean getters.
 
-``` swift
-enum TrafficLight {
-    case red
-    case yellow
-    case green
-}
-
-// derives:
-extension TrafficLight
-    var red: Bool { /* … */ }
-    var yellow: Bool { /* … */ }
-    var green: Bool { /* … */ }
-}
-
-let trafficLight = TrafficLight.red
-trafficLight.red // true
-trafficLight.yellow // false
-```
-
-This may read strangely, though, and seems to go against Swift's API design guidelines.
-
-Another option would be to derive properties that return `Optional<Void>`, instead, which would unify how all properties are generated.
+Enum cases with no associated values could, instead, derive properties that return `Optional<Void>`, which would unify how other properties are generated.
 
 ``` swift
 enum TrafficLight {
@@ -249,9 +231,32 @@ trafficLight.red == nil // false
 trafficLight.yellow == nil // true
 ```
 
-Properties that return `Optional<Void>` may be a strange thing to encounter, though.
+Properties that return `Optional<Void>` are a strange thing to encounter, though, and make the feature more difficult to understand.
 
-For these reasons, we prefer to generate boolean properties that are prefixed with `is` and where the first letter of the case is made uppercase, such that:
+Another option for enum cases with no associated values would be to derive boolean getters with the same name as the case.
+
+``` swift
+enum TrafficLight {
+    case red
+    case yellow
+    case green
+}
+
+// derives:
+extension TrafficLight
+    var red: Bool { /* … */ }
+    var yellow: Bool { /* … */ }
+    var green: Bool { /* … */ }
+}
+
+let trafficLight = TrafficLight.red
+trafficLight.red // true
+trafficLight.yellow // false
+```
+
+This reads strangely, though, and seems to go against Swift's API design guidelines.
+
+For these reasons, we prefer to generate boolean properties that are prefixed with `is` where the first letter of the case is made uppercase such that:
 
 - `value` derives `isValue`
 - `red` derives `isRed`
@@ -261,12 +266,12 @@ This kind of naming seems to work for most cases investigated.
 
 ### Do not revise SE-0155
 
-For enums with case names that overlap:
+If we choose to implement SE-0155 in full, we need a solution for overlapping property names. Two solutions stand out:
 
-1. Swift could not derive properties for overlapping cases. This consequence isn't actively communicated, though, and may be surprising.
+1. Swift could not derive properties for overlapping cases. This consequence is difficult to actively communicate and may be confusing.
 
-2. Swift could allow for overloaded property names that could be disambiguated with explicit types. Such a change has far greater consequences and is beyond the scope of this proposal. Such a change could also be made at a later date.
+2. Swift could support overloaded property names and disambiguate with type hints or labels. Such a change has far greater consequences and is felt to be beyond the scope of this proposal. Such a change could also be made at a later date while favoring the first solution in the interim.
 
 ### Require protocol conformance for derivation
 
-Swift could only derive these properties for `enum`s that conform to a protocol, as in [SE-0167](https://github.com/apple/swift-evolution/blob/master/proposals/0167-swift-encoders.md) with `Encodable` and `Decodable`, and as in [SE-0194](https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md), with `CaseIterable`. It would be ideal to avoid pushing this extra work onto the user.
+Swift could special-case derivation of these properties by requiring a protocol conformance, as in [SE-0167](https://github.com/apple/swift-evolution/blob/master/proposals/0167-swift-encoders.md), with `Encodable` and `Decodable`, and as in [SE-0194](https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md), with `CaseIterable`. This is extra work for the end user, though, which is ideally avoided.
