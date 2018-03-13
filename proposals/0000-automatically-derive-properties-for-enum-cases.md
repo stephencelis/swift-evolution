@@ -77,7 +77,7 @@ Properties reduce code size and enhance readability. Contrast the following prop
 array.filter { $0.value != nil }
 ```
 
-This approach is widely applicable. The Swift Standard Library provides several higher-order methods including `map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, etc. Each is easier to use, read, and maintain when expressed as single lines.
+This approach is widely applicable. The Swift Standard Library provides many higher-order methods, including `map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, and more. Each is easier to use, read, and maintain when expressed as single lines.
 
 ### Deep Nesting
 
