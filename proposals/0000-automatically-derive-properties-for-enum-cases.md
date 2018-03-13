@@ -435,7 +435,7 @@ switch selection {
 case let range(range):
     range.to // Int
 case let discreteIndices(discreteIndices):
-    range.in.first // Int?
+    discreteIndices.in // [Int]
 }
 ```
 
