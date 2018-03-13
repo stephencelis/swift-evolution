@@ -303,7 +303,7 @@ extension TrafficLight
 }
 
 let trafficLight = TrafficLight.red
-trafficLight.red == nil // false
+trafficLight.red == nil    // false
 trafficLight.yellow == nil // true
 ```
 
@@ -326,7 +326,7 @@ extension TrafficLight
 }
 
 let trafficLight = TrafficLight.red
-trafficLight.red // true
+trafficLight.red    // true
 trafficLight.yellow // false
 ```
 
