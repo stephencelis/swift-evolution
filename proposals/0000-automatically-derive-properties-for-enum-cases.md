@@ -1,7 +1,7 @@
 # Automatically derive properties for enum cases
 
 * Proposal: [SE-NNNN](NNNN-filename.md)
-* Authors: [Stephen Celis](https://github.com/stephencelis)
+* Authors: [Stephen Celis](https://github.com/stephencelis), [Matthew Johnson](https://github.com/anandabits)
 * Review Manager: TBD
 * Status: **Awaiting implementation**
 
@@ -44,11 +44,11 @@ if case let .value(value) = result {
 This challenge increases with closures. Swift privileges single-line closures with both implicit returns and better-inferred return types. It should not take multiple lines to extract associated value information from enum instances. The current technology requires excessive boilerplate and ceremony to access these values.
 
 ``` swift
-array.filter { result -> Bool in
-    if case .value = result {
-        return true
+array.compactMap { result -> String? in
+    if case .value(let stringValue) = result {
+        return stringValue
     } else {
-        return false
+        return nil
     }
 }
 ```
@@ -61,7 +61,7 @@ Instead, developers commonly hand-define properties to allow associated value ca
 extension Result {
     /// Returns associated value as `Optional<Value>`
     var value: Value? {
-        if case let .value(value) = result {
+        if case let .value(value) = self {
             return value
         } else {
             return nil
@@ -74,10 +74,16 @@ Properties reduce code size and enhance readability. Contrast the following prop
 
 ``` swift
 // select items supporting associated value `value`
-array.filter { $0.value != nil }
+array.compactMap { $0.value }
 ```
 
-This approach is widely applicable. The Swift Standard Library provides many higher-order methods, including `map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, and more. Each is easier to use, read, and maintain when expressed as single lines.
+This approach is widely applicable. The Swift Standard Library provides many higher-order methods, including `map`, `filter`, `reduce`, `flatMap`, `compactMap`,  `sorted`, `first(where:)`, and more. Each is easier to use, read, and maintain when expressed as single lines.
+
+The benefit is arguably even more significant for APIs which provide KeyPath overloads (and more generally in the future should KeyPaths ever become a subtype of functions):
+
+```
+array.compactMap(\.value)
+```
 
 ### Deep Nesting
 
@@ -96,7 +102,7 @@ if case let .value(.loggedInUser(user)) = result {
 }
 ```
 
-Breaking this down into multiple condition clauses remains complex and difficult:
+Breaking this down into multiple condition clauses remains verbose and clunky:
 
 ``` swift
 // retrieve `name` from embedded associated value
@@ -281,7 +287,7 @@ extension Color {
 
 ### Conflicts
 
-This overall solution is in conflict with unimplemented components of an accepted proposal. [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md) permits enum cases to be given overlapping case names so long as the argument labels and types differ. This unimplemented component must be revised to avoid ambiguity when automatically generating properties.
+This overall solution is in conflict with unimplemented components of an accepted proposal. [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md) permits an enum to have more than one case with the same base name so long as the associated value labels and types differ. This unimplemented component must be revised to avoid ambiguity when automatically generating properties.
 
 ### Future direction
 
@@ -385,7 +391,9 @@ foo.y // String?, from bar payload
 foo.z // Float?, from baz payload
 ```
 
-While interesting, this leads to further ambiguities. What happens when labels overlap?
+This approach is interesting, especially where all cases provide an associated value with the same label and type allowing the synthesized property to have a non-`Optional` type.  This narrow case may be an interesting direction to explore in a future proposal.
+
+However, it is an incomplete solution to the most frequent need to test for a specific case and extract all of its associated values.  As a general solution it also leads to further ambiguities. What happens when labels overlap?
 
 ``` swift
 enum Foo {
