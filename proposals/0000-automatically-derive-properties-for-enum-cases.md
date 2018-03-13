@@ -17,19 +17,23 @@
 
 ## Introduction
 
-Swift should automatically derive properties for enum cases in order to solve two problems:
-
-1. Enums with associated values have been a serious ergonomics issue since Swift's inception. Developers regularly write verbose boilerplate because of this.
-
-2. Key paths are a powerful new Swift feature built around properties. Properties are struct-biased, so enums don't benefit from this feature.
-
-By making the compiler responsible for building enum properties, we unburden developers from the time-consuming task of maintaining and writing partial boilerplate, and we set the stage for enums to benefit from compiler-generated key path code.
+This proposal introduces ways to automatically derive enum case properties to enhance user ergonomics and reduce common boilerplate code.
 
 Swift-evolution thread: [Automatically derive properties for enum cases](https://forums.swift.org/t/automatically-derive-properties-for-enum-cases/10843/16)
 
 ## Motivation
 
-When enums have cases with associated values, they become more difficult to work with. Extracting values requires case analysis, which means a `switch`, `if`, or `guard` statement and block.
+Automatic property derivation for enum cases solves two problems:
+
+1. **Boilerplate**: Developers regularly write verbose boilerplate to handle associated values. This is a serious ergonomics issue that lingers from Swift's inception.
+
+2. **Key paths**: Enums don't benefit from key paths, a powerful new Swift feature built around struct properties. Enums should participate in these advances.
+
+Allowing the compiler to automatically build enum properties unburdens developers from mainaining and writing boilerplate and sets the stage for enum types to benefit from compiler-generated key path code.
+
+### Associated Values
+
+Enum cases with associated values are more difficult to work with. They require case analysis and pattern matching, complicating usage in `switch`, `if`, or `guard` statements and blocks.
 
 ``` swift
 if case let .value(value) = result {
@@ -37,7 +41,7 @@ if case let .value(value) = result {
 }
 ```
 
-This problem gets worse with closures. Swift privileges single-line closures with both implicit returns _and_ better-inferred return types. Extracting associated values from enums requires multiple lines, which leads to more boilerplate and ceremony.
+This challenge increases with closures. Swift privileges single-line closures with both implicit returns and better-inferred return types. It should not take multiple lines to extract associated value information from enum instances. The current technology requires excessive boilerplate and ceremony to access these values.
 
 ``` swift
 array.filter { result -> Bool in
@@ -49,12 +53,13 @@ array.filter { result -> Bool in
 }
 ```
 
-Here we used `if` and `else`. Some teams may prefer to avoid the symmetry of `else` in order to compress things a bit, or to embrace `guard` and enforce an early `return`. All of these statement-based solutions are verbose and read differently. There is no clear winner.
+While this example uses `if` and `else`, some teams may prefer to embrace `guard` and enforce and early `return`. Regardless, these statement-based solutions are verbose and there's no single ergonomic best practice for recovering embedded associated values.
 
-To clean up this boilerplate and confusion, it's common for developers to manually define properties in order to work with expressions, instead.
+Instead, developers commonly hand-define properties to allow associated value cases to work with expressions. For example:
 
 ``` swift
 extension Result {
+    /// Returns associated value as `Optional<Value>`
     var value: Value? {
         if case let .value(value) = result {
             return value
@@ -65,75 +70,85 @@ extension Result {
 }
 ```
 
-Such properties can simplify a lot of code! Our earlier example becomes:
+Properties reduce code size and enhance readability. Contrast the following property-based enumeration processing with the earlier efforts. Extraction and comparison reduce to a single line.
 
 ``` swift
+// select items supporting associated value `value`
 array.filter { $0.value != nil }
 ```
 
-This kind of code isn't uncommon. The Swift standard library provides a lot of higher-order methods (`map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, etc.) that are easier to use and read when they can be expressed as single lines.
+This approach is widely applicable. The Swift Standard Library provides several higher-order methods including `map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, etc. Each is easier to use, read, and maintain when expressed as single lines.
 
-These properties also allow us to traverse deeply into nested structures using optional chaining. _E.g._,
+### Deep Nesting
+
+Enum properties allow deep traversal into nested structures using optional chaining. For example:
 
 ``` swift
-result.value?.anotherCase?.name
+result.value?.loggedInUser?.name
 ```
 
-Without these properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case of nested enums uses nested pattern matching, but still suffers from an additional statement, variable binding, and scope:
+Without properties, filtering by associated value becomes much more verbose, requiring layers of pattern matching. The most efficient approach uses nested pattern matching and suffers from an additional statement, variable binding, and scope. Deep pattern matching is hard to read and unnecessarily obscure:
 
 ``` swift
-if case let .value(.anotherCase(anotherCase)) = result {
-    // use `anotherCase.name`
+// retrieve `name` from embedded associated value
+if case let .value(.loggedInUser(user)) = result {
+    // use `user.name`
 }
 ```
 
-This kind of deep pattern matching isn't commonly known. It's far more common to encounter Swift code that pattern matches over multiple clauses.
+Breaking this down into multiple condition clauses remains complex and difficult:
 
 ``` swift
+// retrieve `name` from embedded associated value
 if
     case let .value(value) = result,
-    case let .anotherCase(anotherCase) = value {
+    case let .loggedInUser(user) = value {
 
-        // use `anotherCase.name`  
+        // use `user.name`
 }
 ```
 
-This is even more difficult to read.
-
-When types are nested between enums, deep pattern matching isn't even possible: pattern matching _must_ be broken up over multiple clauses.
+When types nest between enum instances, deep pattern matching isn't possible; pattern matching _must_ be broken up over multiple clauses:
 
 ``` swift
+// retrieve nested enum property from intermediate associated structure value
 if
     case let .value(myStruct) = result,
-    case let .anotherCase(anotherCase) = myStruct.someProperty {
+    case let .loggedInUser(user) = myStruct.someProperty {
 
-        // use `anotherCase.whatever`
+        // use `user.name`
 }
-// vs.
-result.value?.someProperty.anotherCase?.whatever
 
 // or
 
 if
     case let .value(myStruct) = result,
     let firstChild = myStruct.children.first,
-    case let .anotherCase(anotherCase) = firstChild {
+    case let .anotherCase(theCase) = firstChild {
 
-        // use `anotherCase.whateverStill`
+        // use `theCase.property`
 }
-// vs.
-result.value?.children.first?.anotherCase?.whateverStill
 ```
 
-Messier still! Optional-chaining reads nicely: left-to-right. It's much more difficult to follow case binding over multiple clauses, and there are more variables to track and reason about.
+Compare with the more ergonomic solution produced by this proposal:
 
-Currently, all of these properties must be written by hand. Developers waste a lot of time writing and maintaining noisy boilerplate that may only cover a small subsection of the enums defined in their code. The compiler should unburden developers and automate this with generated code.
+``` swift
+// access `name`
+result.value?.someProperty.loggedInUser?.name
+
+// or
+
+// access `property`
+result.value?.children.first?.anotherCase?.property
+```
+
+Optional-chaining reads cleanly left-to-right. It eliminates the need to follow case binding through multiple clauses. There are fewer variables to track and reason about.
+
+In the current version of Swift, properties like this must be established by hand by the developer. Developers waste time writing and maintaining noisy boilerplate that covers a small subsection of enums defined in their code. The compiler should unburden developers and automate this access through ergonomic generated code.
 
 ### Key Paths
 
-The primary motivation explored thus far is ergonomical, but there's another practical reason to derive these properties: doing so will automatically provide key path support for enums.
-
-Key paths are a powerful new Swift language feature that is built on top of properties and is thus biased towards structs.
+Automatically deriving properties opens the door to key path support for enums. Key paths are a powerful new Swift language feature built on top of properties. As such, they are so-far biased towards structs.
 
 Given a struct:
 
@@ -143,16 +158,16 @@ struct User {
 }
 ```
 
-Swift will automatically generate a key path:
+Swift automatically generates a key path:
 
 ``` swift
 \User.name
 // WritableKeyPath<User, String>
 ```
 
-This key path can be used in a number of ways to make code expressive and reduce boilerplate.
+This key path can be used to enhance code expression and reduce boilerplate.
 
-Enum cases currently live outside the key path world, but if Swift were to derive properties for enum cases, we'd immediately bridge that gap.
+Enum cases currently live outside the key path world. Swift-derived properties for enum cases would bridge that gap:
 
 ``` swift
 enum Result<Value, Other> {
@@ -166,7 +181,7 @@ enum Result<Value, Other> {
 
 ## Proposed solution
 
-Swift should automatically derive these properties. Given the following enum:
+If accepted, Swift will automatically derive enum properties from case names and labels. Given the following enum:
 
 ``` swift
 enum Result<Value, Other> {
@@ -175,10 +190,11 @@ enum Result<Value, Other> {
 }
 ```
 
-Swift should derive the following properties:
+Swift derives the following properties:
 
 ``` swift
 extension Result {
+    /// `value` accessor
     var value: Value? {
         if case let .value(value) = result {
             return value
@@ -187,6 +203,7 @@ extension Result {
         }
     }
 
+    /// `other` accessor
     var other: Other? {
         if case let .other(other) = result {
             return other
@@ -197,7 +214,7 @@ extension Result {
 }
 ```
 
-For enum cases with multiple associated values, Swift should derive a property that returns an optional tuple of associated values.
+Swift will derive a property returning an optional tuple of associated values for cases with multiple associated values:
 
 ``` swift
 enum Color {
@@ -218,9 +235,10 @@ extension Color {
 }
 ```
 
-For enum cases with no associated values, Swift should derive boolean getters.
+Enum cases with no associated values use boolean getters.
 
 ``` swift
+/// Represents possible display states for a traffic light
 enum TrafficLight {
     case red
     case yellow
@@ -229,6 +247,7 @@ enum TrafficLight {
 
 // derives:
 extension TrafficLight
+    /// automatically-generated boolean getter
     var isRed: Bool {
         if case .red = self {
             return true
@@ -246,7 +265,7 @@ trafficLight.isRed    // true
 trafficLight.isYellow // false
 ```
 
-In fact, Swift should derive these boolean getters for all enum cases, including those with associated values.
+Swift should derive Boolean getters for all enum cases, including those with associated values.
 
 ``` swift
 extension Result {
@@ -262,14 +281,11 @@ extension Color {
 
 ### Conflicts
 
-This overall solution is in conflict with unimplemented components of an accepted proposal, [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md).
-
-In this proposal, enum cases can be given overlapping case names (as long as the argument labels and types differ). We propose this unimplemented component should be revised to avoid ambiguity and the failure to generate properties.
-
+This overall solution is in conflict with unimplemented components of an accepted proposal. [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md) permits enum cases to be given overlapping case names so long as the argument labels and types differ. This unimplemented component must be revised to avoid ambiguity when automatically generating properties.
 
 ### Future direction
 
-These getter properties lay the foundation for introducing setters in the future. Mutating a deeply-nested enum requires a lot of code right now. The ability to mutate such values with optional-chaining could improve this immensely.
+These getter properties lay the foundation for introducing setters in the future. Mutating a deeply-nested enum currently requires a lot of boilerplate. The ability to mutate such values with optional-chaining would improve this.
 
 ## Detailed design
 
@@ -279,7 +295,7 @@ N/A
 
 This is strictly additive.
 
-Where existing, user-defined properties collide, Swift could not derive properties.
+Where existing, user-defined properties collide, Swift cannot derive properties.
 
 ## Effect on ABI stability
 
@@ -293,9 +309,7 @@ N/A
 
 ### Do not derive new names for boolean getters
 
-There is some resistance to the idea of magically deriving new names for boolean getters.
-
-Enum cases with no associated values could, instead, derive properties that return `Optional<Void>`, which would unify how other properties are generated.
+Magically deriving new names for Boolean getters is not universally popular. Enum cases without associated values could derive properties that return `Optional<Void>`. This unifies property generation across enum types:
 
 ``` swift
 enum TrafficLight {
@@ -312,13 +326,13 @@ extension TrafficLight
 }
 
 let trafficLight = TrafficLight.red
-trafficLight.red == nil    // false
+trafficLight.red == nil // false
 trafficLight.yellow == nil // true
 ```
 
-Properties that return `Optional<Void>` are a strange thing to encounter, though, and make the feature more difficult to understand.
+Properties that return `Optional<Void>` are uncommon and makes this feature more difficult to understand.
 
-Another option for enum cases with no associated values would be to derive boolean getters with the same name as the case.
+Another option for enum cases without associated values is to derive Boolean getters with the same name as the case.
 
 ``` swift
 enum TrafficLight {
@@ -335,31 +349,29 @@ extension TrafficLight
 }
 
 let trafficLight = TrafficLight.red
-trafficLight.red    // true
+trafficLight.red // true
 trafficLight.yellow // false
 ```
 
-This reads strangely, though, and seems to go against Swift's API design guidelines.
+This naming is contradicted by Swift's API design guidelines.
 
-For these reasons, we prefer to generate boolean properties that are prefixed with `is` where the first letter of the case is made uppercase such that:
+For these reasons, we prefer to generate Boolean properties prefixed with `is` where the first letter of the case is made uppercase such that:
 
 - `value` derives `isValue`
 - `red` derives `isRed`
 - `rgba` derives `isRgba`
 
-This kind of naming seems to work for most cases investigated.
-
 ### Do not revise SE-0155
 
-If we choose to implement SE-0155 in full, we need a solution for overlapping property names. Two solutions stand out:
+If SE-0155 is implemented in full, this proposal requires solution to handle overlapping property names:
 
-1. Swift could not derive properties for overlapping cases. This consequence is difficult to actively communicate and may be confusing.
+1. Swift could exclude automatic property generation for overlapping cases. This consequence is both confusing and difficult to actively communicate.
 
-2. Swift could support overloaded property names and disambiguate with type hints or labels. Such a change has far greater consequences and is felt to be beyond the scope of this proposal. Such a change could also be made at a later date while favoring the first solution in the interim.
+2. Swift could support overloaded property names, disambiguated with type hints or labels. Such a change has far greater consequences and is felt to be beyond the scope of this proposal. Such a change could also be made at a later date while favoring the first solution in the interim.
 
 ### Generate properties from case labels
 
-It was suggested that "we could cut the compound-payload cloth" and "form accessors from each label" instead. _E.g._,
+Feedback from the Swift forums suggested that "we could cut the compound-payload cloth" and "form accessors from each label" instead. _E.g._,
 
 ``` swift
 @frozen enum Foo {
@@ -373,7 +385,7 @@ foo.y // String?, from bar payload
 foo.z // Float?, from baz payload
 ```
 
-This is interesting, but leads to other ambiguities. What if labels overlap?
+While interesting, this leads to further ambiguities. What happens when labels overlap?
 
 ``` swift
 enum Foo {
@@ -385,7 +397,7 @@ let foo: Foo
 foo.x // what type is this?
 ```
 
-What if labels aren't specified (a common case)?
+Similarly, what happens when labels are unspecified (a common case)?
 
 ``` swift
 enum Foo {
@@ -399,11 +411,11 @@ foo.0 // what type is this?
 
 ### Require protocol conformance for derivation
 
-Swift could special-case derivation of these properties by requiring a protocol conformance, as in [SE-0167](https://github.com/apple/swift-evolution/blob/master/proposals/0167-swift-encoders.md), with `Encodable` and `Decodable`, and as in [SE-0194](https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md), with `CaseIterable`. This is extra work for the end user, though, which is ideally avoided.
+Swift could special-case property derivation by requiring a protocol conformance, as in [SE-0167](https://github.com/apple/swift-evolution/blob/master/proposals/0167-swift-encoders.md), with `Encodable` and `Decodable`, and as in [SE-0194](https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md), with `CaseIterable`. This adds extra work for the end user, ideally avoided.
 
 ### Use a new syntax instead of properties
 
-A few folks have suggested using a new syntax instead. It was pointed out that enum labels are sometimes written to read like a function. _E.g._,
+Feedback from the Swift forums suggested using a new syntax instead. One motivation to avoid properties and adopt a new syntax suggested that enum labels are sometimes written to read like a function. _E.g._,
 
 ``` swift
 enum Selection {
@@ -412,7 +424,7 @@ enum Selection {
 }
 ```
 
-There is an argument that property access of such cases pose readability issues.
+It was argued that these cases pose readability issues.
 
 ``` swift
 let selection = Selection.range(from: 1, to: 2)
@@ -431,7 +443,13 @@ case let discreteIndices(discreteIndices):
 }
 ```
 
-Still, some have proposed adding entirely new grammar to the language. For example, a `matches` operator:
+A couple new grammars based on pattern matching were suggested. One example:
+
+``` swift
+(case .anotherCase = (case .value = result)?.someOtherProperty)?.name
+```
+
+Another:
 
 ``` swift
 selection matches .range(from: _, to: let upperBound) // = .some(2)
@@ -440,10 +458,6 @@ selection matches .range(from: _, to: let upperBound) // = .some(2)
 selection matches let .range(a, b) // produces an (a: Int, b: Int)?
 ```
 
-Or with syntax similar to pattern matching:
+These grammars add weight to the language and lead to more unanswered questions. When bindings are used, as in the second example, to express values rather than bind variables, are those variables made available anywhere in scope? How do these solutions work with pattern matching as a whole?
 
-``` swift
-(case .anotherCase = (case .value = result)?.someOtherProperty)?.name
-```
-
-These grammars add weight to the language and lead to a lot of unanswered questions. When bindings are used to express values rather than bind, are those variables made available anywhere in scope? How do such behaviors work with pattern matching as a whole?
+These solutions also fail to provide key path support to enums.
