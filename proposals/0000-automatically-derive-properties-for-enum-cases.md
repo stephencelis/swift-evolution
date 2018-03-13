@@ -415,21 +415,17 @@ Swift could special-case property derivation by requiring a protocol conformance
 
 ### Use a new syntax instead of properties
 
-Feedback from the Swift forums suggested using a new syntax instead. One motivation to avoid properties and adopt a new syntax suggested that enum labels are sometimes written to read like a function. _E.g._,
+Feedback from the Swift forums suggested using a new syntax instead of properties. One motivation for new syntax is that enum labels are sometimes written to read like function labels, and that generated properties pose readability issues. For example:
 
 ``` swift
 enum Selection {
     case range(from: Int, to: Int)
     case discreteIndices(in: [Int], inverted: Bool)
 }
-```
 
-It was argued that these cases pose readability issues.
-
-``` swift
 let selection = Selection.range(from: 1, to: 2)
-selection.range?.to // = .some(2)
-selection.discreteIndices?.in.first
+selection.range?.to // reads poorly
+selection.discreteIndices?.in // reads poorly
 ```
 
 This appears to be a minority of cases and, pending implementation of SE-0155, is how tuple binding currently operates in the language.
@@ -443,13 +439,15 @@ case let discreteIndices(discreteIndices):
 }
 ```
 
-A couple new grammars based on pattern matching were suggested. One example:
+A couple of the grammars suggested were based on pattern matching. One example uses existing `case` pattern matching:
 
 ``` swift
 (case .anotherCase = (case .value = result)?.someOtherProperty)?.name
 ```
 
-Another:
+It's unclear how adding these expressions to the language may affect pattern matching in general.
+
+Another suggestion introduces a `matches` operator:
 
 ``` swift
 selection matches .range(from: _, to: let upperBound) // = .some(2)
@@ -458,6 +456,6 @@ selection matches .range(from: _, to: let upperBound) // = .some(2)
 selection matches let .range(a, b) // produces an (a: Int, b: Int)?
 ```
 
-These grammars add weight to the language and lead to more unanswered questions. When bindings are used, as in the second example, to express values rather than bind variables, are those variables made available anywhere in scope? How do these solutions work with pattern matching as a whole?
+Here, bindings are used to express values rather than bind variables. Are these bindings made available as variables anywhere in scope?
 
-These solutions also fail to provide key path support to enums.
+In general, these suggestions add syntactic weight to the language and lead to more unanswered questions. They also fail to provide key path support to enums.
