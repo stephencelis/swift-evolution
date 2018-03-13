@@ -125,7 +125,7 @@ if
 result.value?.children.first?.anotherCase?.whateverStill
 ```
 
-Messier still!
+Messier still! Optional-chaining reads nicely: left-to-right. It's much more difficult to follow case binding over multiple clauses, and there are more variables to track and reason about.
 
 Currently, all of these properties must be written by hand. Developers waste a lot of time writing and maintaining noisy boilerplate that may only cover a small subsection of the enums defined in their code. The compiler should unburden developers and automate this with generated code.
 
