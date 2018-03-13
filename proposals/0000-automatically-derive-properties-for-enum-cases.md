@@ -109,6 +109,8 @@ if
 
         // use `anotherCase.whatever`
 }
+// vs.
+result.value?.someProperty.anotherCase?.whatever
 
 // or
 
@@ -119,6 +121,8 @@ if
 
         // use `anotherCase.whateverStill`
 }
+// vs.
+result.value?.children.first?.anotherCase?.whateverStill
 ```
 
 Messier still!
