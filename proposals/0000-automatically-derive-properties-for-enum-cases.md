@@ -221,7 +221,7 @@ extension Color {
 }
 ```
 
-Such a solution is in conflict with an unimplemented component of the accepted proposal, [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md), wherein enum cases can be given the same case name. We propose that this unimplemented component should be revised to avoid ambiguity and the failure to be able to generate properties.
+This overall solution is in conflict with an unimplemented component of an accepted proposal, [SE-0155](https://github.com/apple/swift-evolution/blob/master/proposals/0155-normalize-enum-case-representation.md), wherein enum cases can be given overlapping case names (as long as the argument labels and types differ). We propose this unimplemented component should be revised to avoid ambiguity and the failure to generate properties.
 
 ## Detailed design
 
