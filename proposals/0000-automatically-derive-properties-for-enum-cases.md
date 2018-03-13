@@ -79,7 +79,7 @@ Such properties also let us traverse deeply into nested structures using optiona
 result.value?.anotherCase?.name
 ```
 
-Without properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case uses nested pattern matching, but still suffers from an additional statement and scope:
+Without properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case uses nested pattern matching, but still suffers from an additional statement, variable binding, and scope:
 
 ``` swift
 if case let .value(.anotherCase(anotherCase)) = result {
