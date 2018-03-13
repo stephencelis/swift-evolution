@@ -309,6 +309,46 @@ If we choose to implement SE-0155 in full, we need a solution for overlapping pr
 
 2. Swift could support overloaded property names and disambiguate with type hints or labels. Such a change has far greater consequences and is felt to be beyond the scope of this proposal. Such a change could also be made at a later date while favoring the first solution in the interim.
 
+### Generate properties from case labels
+
+It was suggested that "we could cut the compound-payload cloth" and "form accessors from each label" instead. _E.g._,
+
+``` swift
+@frozen enum Foo {
+    case bar(x: Int, y: String)
+    case baz(x: Int, z: Float)
+}
+
+let foo: Foo
+foo.x // Int, from either bar or baz payload
+foo.y // String?, from bar payload
+foo.z // Float?, from baz payload
+```
+
+This is interesting, but leads to other ambiguities. What if labels overlap?
+
+``` swift
+enum Foo {
+  case bar(x: Int)
+  case baz(x: String)
+}
+
+let foo: Foo
+foo.x // what type is this?
+```
+
+What if labels aren't specified (a common case)?
+
+``` swift
+enum Foo {
+  case bar(Int)
+  case bar(String)
+}
+
+let foo: Foo
+foo.0 // what type is this?
+```
+
 ### Require protocol conformance for derivation
 
 Swift could special-case derivation of these properties by requiring a protocol conformance, as in [SE-0167](https://github.com/apple/swift-evolution/blob/master/proposals/0167-swift-encoders.md), with `Encodable` and `Decodable`, and as in [SE-0194](https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md), with `CaseIterable`. This is extra work for the end user, though, which is ideally avoided.
