@@ -413,22 +413,28 @@ foo.0 // what type is this?
 
 Swift could special-case property derivation by requiring a protocol conformance, as in [SE-0167](https://github.com/apple/swift-evolution/blob/master/proposals/0167-swift-encoders.md), with `Encodable` and `Decodable`, and as in [SE-0194](https://github.com/apple/swift-evolution/blob/master/proposals/0194-derived-collection-of-enum-cases.md), with `CaseIterable`. This adds extra work for the end user, ideally avoided.
 
-### Use a new syntax instead of properties
+### Introduce new syntax
 
-Feedback from the Swift forums suggested using a new syntax instead of properties. One motivation for new syntax is that enum labels are sometimes written to read like function labels, and that generated properties pose readability issues. For example:
+Swift forum feedback included the introduction of a new syntax instead of properties. Enum labels are sometimes written to read like a function:
 
 ``` swift
 enum Selection {
     case range(from: Int, to: Int)
     case discreteIndices(in: [Int], inverted: Bool)
 }
+```
 
+Using properties could introduce readability issues, as in the following example, where fluency is lost in translation.
+
+```
 let selection = Selection.range(from: 1, to: 2)
 selection.range?.to // reads poorly
 selection.discreteIndices?.in // reads poorly
 ```
 
-This appears to be a minority of cases and, pending implementation of SE-0155, is how tuple binding currently operates in the language.
+Function labels are meant to enhance construction readability. Using these labels in isolation produces potentially confusing property names. Focusing on construction fluency is not a wide-spread concern for many developers, who more often use structure-like property names for their labels.
+
+Function labels in enum cases are a minority style. Pending implementation of SE-0155, tuple binding operates using property-like accessors:
 
 ``` swift
 switch selection {
@@ -439,23 +445,16 @@ case let discreteIndices(discreteIndices):
 }
 ```
 
-A couple of the grammars suggested were based on pattern matching. One example uses existing `case` pattern matching:
+New grammars based on pattern matching were suggested:
 
 ``` swift
 (case .anotherCase = (case .value = result)?.someOtherProperty)?.name
-```
 
-It's unclear how adding these expressions to the language may affect pattern matching in general.
+// or, along with the introduction of a `matches` operator
 
-Another suggestion introduces a `matches` operator:
-
-``` swift
 selection matches .range(from: _, to: let upperBound) // = .some(2)
-(selection matches .discreteIndices(let indices, _))?.first
-
+(selection matches .discreteIndices(let indices, _))?.first // chaining
 selection matches let .range(a, b) // produces an (a: Int, b: Int)?
 ```
 
-Here, bindings are used to express values rather than bind variables. Are these bindings made available as variables anywhere in scope?
-
-In general, these suggestions add syntactic weight to the language and lead to more unanswered questions. They also fail to provide key path support to enums.
+These grammars add weight to the language and lead to more unanswered questions. When bindings are used, as in the second example, to express values rather than bind variables, are those variables made available anywhere in scope? How do these solutions work with pattern matching as a whole?
