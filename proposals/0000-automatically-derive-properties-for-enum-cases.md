@@ -100,14 +100,24 @@ if
 
 This is even more difficult to read.
 
-When enums nest structs that nest enums, deep pattern matching isn't possible: pattern matching _must_ be broken up over multiple clauses.
+When types are nested between enums, deep pattern matching isn't even possible: pattern matching _must_ be broken up over multiple clauses.
 
-```
+``` swift
 if
     case let .value(myStruct) = result,
     case let .anotherCase(anotherCase) = myStruct.someProperty {
 
         // use `anotherCase.whatever`
+}
+
+// or
+
+if
+    case let .value(myStruct) = result,
+    let firstChild = myStruct.children.first,
+    case let .anotherCase(anotherCase) = firstChild {
+
+        // use `anotherCase.whateverStill`
 }
 ```
 
