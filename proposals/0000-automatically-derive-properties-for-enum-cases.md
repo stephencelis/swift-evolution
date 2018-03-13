@@ -73,7 +73,21 @@ array.filter { $0.value != nil }
 
 This kind of code isn't uncommon. The Swift standard library provides a lot of higher-order methods (`map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, etc.) that are easier to use and read when they can be expressed as single lines.
 
-Such properties also let us traverse deeply into nested structures using optional chaining. Without them, we have to wade through layers of `case let` binding.
+Such properties also let us traverse deeply into nested structures using optional chaining. _E.g._,
+
+```
+result.value?.anotherCase?.name
+```
+
+Without properties, this becomes much more verbose: we have to wade through layers of pattern matching. The most efficient case uses nested pattern matching, but still suffers from an additional statement and scope:
+
+``` swift
+if case let .value(.anotherCase(anotherCase)) = result {
+    // use `anotherCase.name`
+}
+```
+
+Deep pattern matching isn't commonly known. It's far more common to encounter Swift code that pattern matches over multiple clauses.
 
 ``` swift
 if
@@ -82,11 +96,9 @@ if
 
         // use `anotherCase.name`  
 }
-
-// vs.
-
-result.value?.anotherCase?.name
 ```
+
+This is even more difficult to read.
 
 Currently, all of these properties must be written by hand. Developers waste a lot of time writing and maintaining noisy boilerplate that may only cover a small subsection of the enums defined in their code. The compiler should unburden developers and automate this with generated code.
 
