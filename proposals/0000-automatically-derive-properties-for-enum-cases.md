@@ -21,7 +21,7 @@ Swift should automatically derive properties for enum cases in order to solve tw
 
 1. Enums with associated values have been a serious ergonomics issue since Swift's inception. Developers regularly write verbose boilerplate because of this.
 
-2. Key paths are a powerful new Swift feature built around properties. Properties are struct-biased, so enums are left behind.
+2. Key paths are a powerful new Swift feature built around properties. Properties are struct-biased, so enums don't benefit from this feature.
 
 By making the compiler responsible for building enum properties, we unburden developers from the time-consuming task of maintaining and writing partial boilerplate, and we set the stage for enums to benefit from compiler-generated key path code.
 
