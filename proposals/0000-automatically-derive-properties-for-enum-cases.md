@@ -37,7 +37,7 @@ if case let .value(value) = result {
 }
 ```
 
-This problem gets worse with closures. Swift privileges single-line closures with implicit returns and better-inferred return types. Extracting associated values requires multiple lines, which leads to more boilerplate and ceremony.
+This problem gets worse with closures. Swift privileges single-line closures with both implicit returns _and_ better-inferred return types. Extracting associated values from enums requires multiple lines, which leads to more boilerplate and ceremony.
 
 ``` swift
 array.filter { result -> Bool in
@@ -49,7 +49,7 @@ array.filter { result -> Bool in
 }
 ```
 
-Here we used `if` and `else`. Some teams may prefer to avoid the symmetry of `else` to compact things a bit, or to embrace `guard` and enforce an early `return`. All of these statement-based solutions are verbose, though, and read differently. There is no clear winner.
+Here we used `if` and `else`. Some teams may prefer to avoid the symmetry of `else` in order to compress things a bit, or to embrace `guard` and enforce an early `return`. All of these statement-based solutions are verbose and read differently. There is no clear winner.
 
 To clean up this boilerplate and confusion, it's common for developers to manually define properties in order to work with expressions, instead.
 
@@ -71,7 +71,9 @@ Such properties can simplify a lot of code! Our earlier example becomes:
 array.filter { $0.value != nil }
 ```
 
-These properties also let us traverse deeply into nested structures using optional chaining. Without them, we would have to go through layers of `case let` binding.
+This kind of code isn't uncommon. The Swift standard library provides a lot of higher-order methods (`map`, `filter`, `reduce`, `flatMap`, `sorted`, `first(where:)`, etc.) that are easier to use and read when they can be expressed as single lines.
+
+Such properties also let us traverse deeply into nested structures using optional chaining. Without them, we have to wade through layers of `case let` binding.
 
 ``` swift
 if
@@ -86,7 +88,42 @@ if
 result.value?.anotherCase?.name
 ```
 
-These properties must currently be written by hand. Developers waste a lot of time writing and maintaining noisy boilerplate that may only cover a small subsection of the enums defined in their code.
+Currently, all of these properties must be written by hand. Developers waste a lot of time writing and maintaining noisy boilerplate that may only cover a small subsection of the enums defined in their code. The compiler should unburden developers and automate this with generated code.
+
+### Key Paths
+
+The primary motivation explored thus far is ergonomical, but there's another practical reason to derive these properties: doing so will automatically provide key path support for enums.
+
+Key paths are a powerful new Swift language feature that is built on top of properties and is thus biased towards structs.
+
+Given a struct:
+
+``` swift
+struct User {
+  var name: String
+}
+```
+
+Swift will automatically generate a key path:
+
+``` swift
+\User.name
+// WritableKeyPath<User, String>
+```
+
+This key path can be used in a number of ways to make code expressive and reduce boilerplate.
+
+Enum cases currently live outside the key path world, but if Swift were to derive properties for enum cases, we'd immediately bridge that gap.
+
+``` swift
+enum Result<Value, Other> {
+  case value(Value)
+  case other(Other)
+}
+
+\Result<Int, String>.value
+// KeyPath<Result<Int, String>, Int?>
+```
 
 ## Proposed solution
 
