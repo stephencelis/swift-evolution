@@ -1,7 +1,7 @@
 # Key path getter promotion
 
 * Proposal: [SE-NNNN](NNNN-filename.md)
-* Authors: [Stephen Celis](https://github.com/stephencelis)
+* Authors: [Stephen Celis](https://github.com/stephencelis), [Brandon Williams](https://www.github.com/mbrandonw)
 * Review Manager: TBD
 * Status: **Awaiting implementation**
 
