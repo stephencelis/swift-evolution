@@ -1,7 +1,7 @@
 # Key path getter promotion
 
 * Proposal: [SE-NNNN](NNNN-filename.md)
-* Authors: [Stephen Celis](https://github.com/stephencelis)
+* Authors: [Stephen Celis](https://github.com/stephencelis), [Brandon Williams](https://www.github.com/mbrandonw)
 * Review Manager: TBD
 * Status: **Awaiting implementation**
 
@@ -92,7 +92,7 @@ N/A
 
 ### Prefix operator
 
-We could introduce a prefix operator, `^` for example, to the Standard Library. We can define it today:
+If we do not want compiler magic doing the automatic promotion, we could introduce a prefix operator, `^` for example, to the Standard Library. We can define it today:
 
 ``` swift
 prefix operator ^
